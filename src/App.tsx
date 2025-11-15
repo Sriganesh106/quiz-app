@@ -373,7 +373,7 @@ function App() {
     const scorePercentage = Math.round((correctAnswers / totalQuestions) * 100);
 
     if (userDetails) {
-      // Submit results to Supabase - Fixed async call
+      // Submit results to Supabase - with correct parameters
       const submitResults = async () => {
         try {
           const { data, error } = await supabase.rpc('submit_quiz_with_details', {
@@ -381,13 +381,10 @@ function App() {
             p_email: userDetails.email,
             p_mobile_number: userDetails.mobile,
             p_college_name: userDetails.college,
-            p_course_id: userDetails.course_id || '',
-            p_week: userDetails.week || '',
             p_total_questions: totalQuestions,
             p_correct_answers: correctAnswers,
             p_time_taken_seconds: timeTaken,
             p_answers: answers,
-            p_score_percentage: scorePercentage,
           });
           
           if (error) {
