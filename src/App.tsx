@@ -376,30 +376,29 @@ function App() {
       
       const submitResults = async () => {
         try {
-          console.log('Submitting quiz results to quiz_results table...');
+          console.log('Submitting quiz results via RPC...');
           
-          const { data, error } = await supabase
-            .from('quiz_results')
-            .insert([{
-              user_name: userDetails.name,
-              email: userDetails.email,
-              mobile_number: userDetails.mobile || null,
-              college_name: userDetails.college || null,
-              course_id: userDetails.course_id,      // ✅ ADDED
-              week: userDetails.week,                 // ✅ ADDED
-              total_questions: totalQuestions,
-              correct_answers: correctAnswers,
-              time_taken_seconds: timeTaken,
-              answers: answers
-            }]);
+          const { data, error } = await supabase.rpc('submit_quiz_with_d', {
+            p_user_name: userDetails.name,
+            p_email: userDetails.email,
+            p_mobile_number: userDetails.mobile || '',
+            p_college_name: userDetails.college || '',
+            p_course_id: userDetails.course_id || '',
+            p_week: userDetails.week || '',
+            p_total_questions: totalQuestions,
+            p_correct_answers: correctAnswers,
+            p_time_taken_seconds: timeTaken,
+            p_answers: answers
+          });
           
           if (error) {
             console.error('Error saving quiz results:', error);
-          } else {
-            console.log('Quiz results saved successfully!', data);
+            return;
           }
+          
+          console.log('Results saved successfully:', data);
         } catch (err) {
-          console.error('Error saving quiz results:', err);
+          console.error('Error in submitResults:', err);
         }
       };
       
