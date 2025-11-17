@@ -378,7 +378,7 @@ function App() {
         try {
           console.log('Submitting quiz results...');
           
-          const { data, error } = await supabase.rpc('submit_quiz_with_details', {
+          const { data, error } = await supabase.rpc('submit_quiz_with_d', {
             p_user_name: userDetails.name,
             p_email: userDetails.email,
             p_mobile_number: userDetails.mobile || '',
