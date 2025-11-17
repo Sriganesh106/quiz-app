@@ -376,15 +376,15 @@ function App() {
       
       const submitResults = async () => {
         try {
-          console.log('Submitting quiz results via RPC...');
+          console.log('Submitting quiz results...');
           
           const { data, error } = await supabase.rpc('submit_quiz_with_details', {
             p_user_name: userDetails.name,
             p_email: userDetails.email,
             p_mobile_number: userDetails.mobile || '',
             p_college_name: userDetails.college || '',
-            p_course_id: userDetails.course_id || 'default',  // Make sure this matches your data
-            p_week: userDetails.week || '1',                  // Default to week 1 if not provided
+            p_course_id: userDetails.course_id || 'default',
+            p_week: userDetails.week || '1',
             p_total_questions: totalQuestions,
             p_correct_answers: correctAnswers,
             p_time_taken_seconds: timeTaken,
@@ -392,13 +392,15 @@ function App() {
           });
           
           if (error) {
-            console.error('Error saving quiz results:', error);
-            return;
+            console.error('Error details:', error);
+            throw error;
           }
           
-          console.log('Results saved successfully:', data);
-        } catch (err) {
-          console.error('Error in submitResults:', err);
+          console.log('Success:', data);
+          return data;
+        } catch (error) {
+          console.error('Error in submitResults:', error);
+          throw error;
         }
       };
       
