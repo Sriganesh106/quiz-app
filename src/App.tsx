@@ -66,20 +66,32 @@ function App() {
     console.log('🔍 Checking quiz status for:', { courseId, week });
     
     try {
+      // First, let's see all records in the table for debugging
+      const { data: allData, error: allError } = await supabase
+        .from('quiz_status')
+        .select('*');
+      
+      console.log('📊 All quiz statuses in database:', allData);
+      
+      // Now check for the specific quiz
       const { data, error } = await supabase
         .from('quiz_status')
-        .select('is_active')
+        .select('*')
         .eq('course_id', courseId)
         .eq('week', week)
-        .single();
+        .maybeSingle(); // Use maybeSingle instead of single to avoid error if not found
 
-      if (error?.code === 'PGRST116' || !data) {
-        console.log('ℹ️ No status found, quiz is inactive by default');
-        return false; // Changed: Don't create entry, just return false
+      console.log('🔍 Query result:', { data, error });
+
+      if (!data) {
+        console.log('⚠️ No quiz_status record found for course_id:', courseId, 'week:', week);
+        console.log('💡 To fix this, run this SQL in Supabase:');
+        console.log(`INSERT INTO quiz_status (course_id, week, is_active) VALUES ('${courseId}', '${week}', true);`);
+        return false;
       }
 
-      console.log('📊 Current status:', data.is_active);
-      return data.is_active;
+      console.log('✅ Quiz status found:', data);
+      return data.is_active === true;
     } catch (err) {
       console.error('❌ Error in checkQuizStatus:', err);
       return false;
@@ -88,9 +100,8 @@ function App() {
 
   const loadQuestions = async (courseId: string, week: string) => {
     try {
-      setLoading(true);
-      setError(null);
-
+      console.log('📚 Loading questions for course:', courseId, 'week:', week);
+      
       const { data, error: fetchError } = await supabase
         .from('quiz_questions')
         .select('*')
@@ -98,7 +109,12 @@ function App() {
         .eq('week', week)
         .order('order_number', { ascending: true });
 
-      if (fetchError) throw fetchError;
+      if (fetchError) {
+        console.error('❌ Error fetching questions:', fetchError);
+        throw fetchError;
+      }
+
+      console.log('📚 Questions loaded:', data?.length || 0, 'questions');
 
       if (!data || data.length === 0) {
         throw new Error('No questions found for this course and week');
@@ -110,72 +126,74 @@ function App() {
       console.error('Error loading questions:', err);
       setError('Failed to load quiz questions. Please try again later.');
       return false;
-    } finally {
-      setLoading(false);
     }
   };
 
   useEffect(() => {
     const initializeQuiz = async () => {
-      console.log('🚀 Initializing quiz...');
+      console.log('🚀 Starting quiz initialization...');
       const params = getUrlParams();
-      console.log('🔗 URL params:', params);
+      console.log('🔗 URL parameters:', params);
       
+      // Validate required parameters
       if (!params.course_id || !params.week) {
-        const errorMsg = 'Missing course_id or week in URL';
-        console.error('❌', errorMsg);
-        setError(errorMsg);
+        setError('Missing course_id or week in URL');
         setLoading(false);
         return;
       }
 
-      // Check if course_id and week are allowed
-      if (!ALLOWED_COURSE_IDS.includes(params.course_id) || !ALLOWED_WEEKS.includes(params.week)) {
-        const errorMsg = 'Invalid course or week specified';
-        console.error('❌', errorMsg);
-        setError(errorMsg);
+      if (!params.name || !params.email) {
+        setError('Missing name or email in URL');
+        setLoading(false);
+        return;
+      }
+
+      // Check if course and week are allowed
+      if (!ALLOWED_COURSE_IDS.includes(params.course_id)) {
+        setError(`Course ID ${params.course_id} is not allowed. Allowed courses: ${ALLOWED_COURSE_IDS.join(', ')}`);
+        setLoading(false);
+        return;
+      }
+
+      if (!ALLOWED_WEEKS.includes(params.week)) {
+        setError(`Week ${params.week} is not allowed. Allowed weeks: ${ALLOWED_WEEKS.join(', ')}`);
         setLoading(false);
         return;
       }
 
       try {
-        // First check if quiz is active
-        console.log('🔍 Checking quiz status...');
+        // Check if quiz is active
         const isActive = await checkQuizStatus(params.course_id, params.week);
-        console.log('✅ Quiz active status:', isActive);
         
         if (!isActive) {
-          const errorMsg = 'This quiz is currently inactive. Please contact your administrator or try again later.';
-          console.log('⛔', errorMsg);
-          setError(errorMsg);
+          setError(`This quiz (Course ${params.course_id}, Week ${params.week}) is currently inactive. Please contact your administrator.`);
           setLoading(false);
           return;
         }
 
-        // Only proceed if quiz is active and has required params
-        if (hasRequiredParams()) {
-          console.log('🎯 Quiz is active and params are valid, initializing...');
-          setUserDetails({
-            name: params.name,
-            email: params.email,
-            mobile: '',
-            college: '',
-            course_id: params.course_id,
-            week: params.week
-          });
-          
-          const questionsLoaded = await loadQuestions(params.course_id, params.week);
-          if (questionsLoaded) {
-            setQuizState('user-details'); // Start with user details form
-            setLoading(false);
-          }
-        } else {
-          setError('Missing required parameters (name or email) in URL');
-          setLoading(false);
+        console.log('✅ Quiz is active, loading questions...');
+
+        // Set user details
+        setUserDetails({
+          name: params.name,
+          email: params.email,
+          mobile: '',
+          college: '',
+          course_id: params.course_id,
+          week: params.week
+        });
+        
+        // Load questions
+        const questionsLoaded = await loadQuestions(params.course_id, params.week);
+        
+        if (questionsLoaded) {
+          console.log('✅ Everything loaded successfully!');
+          setQuizState('user-details');
         }
       } catch (err) {
-        console.error('❌ Error initializing quiz:', err);
+        console.error('❌ Error during initialization:', err);
         setError('Failed to initialize quiz. Please try again.');
+      } finally {
         setLoading(false);
       }
     };
@@ -260,6 +278,7 @@ function App() {
         }]);
 
       if (error) throw error;
+      console.log('✅ Quiz results saved successfully');
     } catch (err) {
       console.error('Error saving quiz results:', err);
     }
@@ -278,7 +297,7 @@ function App() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-          <p className="mt-4 text-lg text-gray-600">Loading quiz...</p>
+          <p className="mt-4 text-lg text-gray-600">Checking quiz status...</p>
         </div>
       </div>
     );
@@ -308,11 +327,11 @@ function App() {
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Quiz Unavailable</h2>
           <p className="text-gray-600 mb-6">{error}</p>
           {error.includes('inactive') && params.course_id && params.week && (
-            <div className="mb-4 p-3 bg-yellow-50 border-l-4 border-yellow-400 text-yellow-700">
-              <p className="font-medium">Note for Admin:</p>
-              <p className="text-sm">To activate this quiz, run this query in Supabase:</p>
-              <code className="block bg-gray-100 p-2 rounded text-xs mt-2 text-gray-800">
-                UPDATE quiz_status SET is_active = true WHERE course_id = '{params.course_id}' AND week = '{params.week}';
+            <div className="mb-4 p-3 bg-yellow-50 border-l-4 border-yellow-400 text-yellow-700 text-left">
+              <p className="font-medium">For Administrator:</p>
+              <p className="text-sm mt-1">To activate this quiz, run this SQL query in Supabase:</p>
+              <code className="block bg-gray-100 p-2 rounded text-xs mt-2 text-gray-800 break-all">
+                INSERT INTO quiz_status (course_id, week, is_active) VALUES ('{params.course_id}', '{params.week}', true) ON CONFLICT (course_id, week) DO UPDATE SET is_active = true, updated_at = NOW();
               </code>
             </div>
           )}
