@@ -431,59 +431,60 @@ function App() {
   }
 
   if (quizState === 'results') {
-    const correctAnswers = answers.filter((a) => a.isCorrect).length;
-    const totalQuestions = questions.length;
-    const scorePercentage = Math.round((correctAnswers / totalQuestions) * 100);
+  const correctAnswers = answers.filter((a) => a.isCorrect).length;
+  const totalQuestions = questions.length;
+  const scorePercentage = Math.round((correctAnswers / totalQuestions) * 100);
 
-    if (userDetails && !hasSubmittedResults.current) {
-      hasSubmittedResults.current = true;
-      
-      const submitResults = async () => {
-        try {
-          console.log('Submitting quiz results...');
-          
-          const { data, error } = await supabase.rpc('submit_quiz_with_details', {
-            p_user_name: userDetails.name,
-            p_email: userDetails.email,
-            p_mobile_number: userDetails.mobile || '',
-            p_college_name: userDetails.college || '',
-            p_course_id: userDetails.course_id || 'default',
-            p_week: userDetails.week || '1',
-            p_total_questions: totalQuestions,
-            p_correct_answers: correctAnswers,
-            p_time_taken_seconds: timeTaken,
-            p_answers: answers
-          });
-          
-          if (error) {
-            console.error('Error details:', error);
-            throw error;
-          }
-          
-          console.log('Success:', data);
-          return data;
-        } catch (error) {
-          console.error('Error in submitResults:', error);
+  if (userDetails && !hasSubmittedResults.current) {
+    hasSubmittedResults.current = true;
+    
+    const submitResults = async () => {
+      try {
+        console.log('Submitting quiz results...');
+        
+        // CHANGED: Direct insert instead of RPC
+        const { error } = await supabase
+          .from('quiz_results')
+          .insert([{
+            name: userDetails.name,
+            email: userDetails.email,
+            mobile: userDetails.mobile || '',
+            college: userDetails.college || '',
+            course_id: userDetails.course_id || 'default',
+            week: userDetails.week || '1',
+            score: correctAnswers,
+            total_questions: totalQuestions,
+            time_taken: timeTaken,
+            answers: answers
+          }]);
+        
+        if (error) {
+          console.error('Error details:', error);
           throw error;
         }
-      };
-      
-      submitResults();
-    }
-
-    return (
-      <Results
-        correctAnswers={correctAnswers}
-        totalQuestions={totalQuestions}
-        timeTaken={timeTaken}
-        onRestart={handleRestart}
-        userEmail={userDetails?.email}
-        userName={userDetails?.name}
-        userMobile={userDetails?.mobile}
-        userCollege={userDetails?.college}
-      />
-    );
+        
+        console.log('Results saved successfully');
+      } catch (error) {
+        console.error('Error in submitResults:', error);
+      }
+    };
+    
+    submitResults();
   }
+
+  return (
+    <Results
+      correctAnswers={correctAnswers}
+      totalQuestions={totalQuestions}
+      timeTaken={timeTaken}
+      onRestart={handleRestart}
+      userEmail={userDetails?.email}
+      userName={userDetails?.name}
+      userMobile={userDetails?.mobile}
+      userCollege={userDetails?.college}
+    />
+  );
+}
 
   if (error) {
     return (

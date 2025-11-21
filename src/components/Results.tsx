@@ -1,5 +1,4 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Trophy, Clock, CheckCircle, XCircle, Home, RotateCcw } from 'lucide-react';
 
@@ -31,9 +30,6 @@ const Results: React.FC<ResultsProps> = ({
   onRestart,
   userDetails 
 }) => {
-  const navigate = useNavigate();
-
-  // Calculate results
   const totalQuestions = questions.length;
   const correctAnswers = userAnswers.filter(
     (answer, index) => answer === questions[index].correct_answer
@@ -41,8 +37,6 @@ const Results: React.FC<ResultsProps> = ({
   const scorePercentage = Math.round((correctAnswers / totalQuestions) * 100);
   const minutes = Math.floor(timeSpent / 60);
   const seconds = timeSpent % 60;
-
-  // ✅ REMOVED: All the submission logic - App.tsx already handles it
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
@@ -87,13 +81,6 @@ const Results: React.FC<ResultsProps> = ({
             >
               <RotateCcw size={18} />
               Take Quiz Again
-            </button>
-            <button
-              onClick={() => navigate('/')}
-              className="px-6 py-3 bg-gray-200 text-gray-800 rounded-lg font-medium hover:bg-gray-300 transition-colors flex items-center justify-center gap-2"
-            >
-              <Home size={18} />
-              Back to Home
             </button>
           </div>
         </div>
