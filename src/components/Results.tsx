@@ -1,42 +1,27 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Trophy, Clock, CheckCircle, XCircle, Home, RotateCcw } from 'lucide-react';
+import { Trophy, Clock, CheckCircle, RotateCcw } from 'lucide-react';
 
 interface ResultsProps {
-  userAnswers: string[];
-  questions: Array<{
-    id: string;
-    question_text: string;
-    option_a: string;
-    option_b: string;
-    option_c: string;
-    option_d: string;
-    correct_answer: string;
-  }>;
-  timeSpent: number;
+  correctAnswers: number;
+  totalQuestions: number;
+  timeTaken: number;
   onRestart: () => void;
-  userDetails: {
-    name: string;
-    email: string;
-    phone: string;
-    college: string;
-  };
+  userEmail?: string;
+  userName?: string;
+  userMobile?: string;
+  userCollege?: string;
 }
 
 const Results: React.FC<ResultsProps> = ({ 
-  userAnswers, 
-  questions, 
-  timeSpent, 
-  onRestart,
-  userDetails 
+  correctAnswers,
+  totalQuestions,
+  timeTaken,
+  onRestart
 }) => {
-  const totalQuestions = questions.length;
-  const correctAnswers = userAnswers.filter(
-    (answer, index) => answer === questions[index].correct_answer
-  ).length;
   const scorePercentage = Math.round((correctAnswers / totalQuestions) * 100);
-  const minutes = Math.floor(timeSpent / 60);
-  const seconds = timeSpent % 60;
+  const minutes = Math.floor(timeTaken / 60);
+  const seconds = timeTaken % 60;
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">

@@ -37,7 +37,7 @@ function App() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<QuizAnswer[]>([]);
   const [timeTaken, setTimeTaken] = useState(0);
-  const [loading, setLoading] = useState(true); // CHANGED TO TRUE
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const hasRecordedParticipantRef = useRef(false);
   const hasSubmittedResults = useRef(false);
@@ -91,7 +91,6 @@ function App() {
     }
   };
 
-  // CHECK QUIZ STATUS FUNCTION
   const checkQuizStatus = async (courseId: string, week: string): Promise<boolean> => {
     try {
       const { data, error } = await supabase
@@ -148,13 +147,11 @@ function App() {
     const initializeQuiz = async () => {
       const params = getUrlParams();
 
-      // CHECK IF REQUIRED PARAMS EXIST
       if (!hasRequiredParams()) {
         setLoading(false);
         return;
       }
 
-      // CHECK QUIZ STATUS
       const isActive = await checkQuizStatus(params.course_id, params.week);
       
       if (!isActive) {
@@ -163,7 +160,6 @@ function App() {
         return;
       }
 
-      // QUIZ IS ACTIVE - PROCEED NORMALLY
       setUserDetails({
         name: params.name,
         email: params.email,
@@ -256,7 +252,6 @@ function App() {
     setQuizState('welcome');
   };
 
-  // SHOW LOADING
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
@@ -268,7 +263,6 @@ function App() {
     );
   }
 
-  // SHOW INVALID PAGE IF QUIZ IS INACTIVE
   if (error === 'INACTIVE') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
@@ -431,60 +425,56 @@ function App() {
   }
 
   if (quizState === 'results') {
-  const correctAnswers = answers.filter((a) => a.isCorrect).length;
-  const totalQuestions = questions.length;
-  const scorePercentage = Math.round((correctAnswers / totalQuestions) * 100);
+    const correctAnswers = answers.filter((a) => a.isCorrect).length;
+    const totalQuestions = questions.length;
 
-  if (userDetails && !hasSubmittedResults.current) {
-    hasSubmittedResults.current = true;
-    
-    const submitResults = async () => {
-      try {
-        console.log('Submitting quiz results...');
-        
-        // CHANGED: Direct insert instead of RPC
-        const { error } = await supabase
-          .from('quiz_results')
-          .insert([{
-            name: userDetails.name,
-            email: userDetails.email,
-            mobile: userDetails.mobile || '',
-            college: userDetails.college || '',
-            course_id: userDetails.course_id || 'default',
-            week: userDetails.week || '1',
-            score: correctAnswers,
-            total_questions: totalQuestions,
-            time_taken: timeTaken,
-            answers: answers
-          }]);
-        
-        if (error) {
-          console.error('Error details:', error);
-          throw error;
+    if (userDetails && !hasSubmittedResults.current) {
+      hasSubmittedResults.current = true;
+      
+      const submitResults = async () => {
+        try {
+          console.log('Submitting quiz results...');
+          
+          const { error } = await supabase
+            .from('quiz_results')
+            .insert([{
+              name: userDetails.name,
+              email: userDetails.email,
+              mobile_number: userDetails.mobile || '',
+              college_name: userDetails.college || '',
+              course_id: userDetails.course_id || 'default',
+              week: userDetails.week || '1',
+              score: correctAnswers,
+              total_questions: totalQuestions,
+              time_taken_seconds: timeTaken
+            }]);
+          
+          if (error) {
+            console.error('Error saving results:', error);
+          } else {
+            console.log('Results saved successfully');
+          }
+        } catch (error) {
+          console.error('Error in submitResults:', error);
         }
-        
-        console.log('Results saved successfully');
-      } catch (error) {
-        console.error('Error in submitResults:', error);
-      }
-    };
-    
-    submitResults();
-  }
+      };
+      
+      submitResults();
+    }
 
-  return (
-    <Results
-      correctAnswers={correctAnswers}
-      totalQuestions={totalQuestions}
-      timeTaken={timeTaken}
-      onRestart={handleRestart}
-      userEmail={userDetails?.email}
-      userName={userDetails?.name}
-      userMobile={userDetails?.mobile}
-      userCollege={userDetails?.college}
-    />
-  );
-}
+    return (
+      <Results
+        correctAnswers={correctAnswers}
+        totalQuestions={totalQuestions}
+        timeTaken={timeTaken}
+        onRestart={handleRestart}
+        userEmail={userDetails?.email}
+        userName={userDetails?.name}
+        userMobile={userDetails?.mobile}
+        userCollege={userDetails?.college}
+      />
+    );
+  }
 
   if (error) {
     return (
