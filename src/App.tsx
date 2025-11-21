@@ -37,7 +37,7 @@ function App() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<QuizAnswer[]>([]);
   const [timeTaken, setTimeTaken] = useState(0);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // CHANGED TO TRUE
   const [error, setError] = useState<string | null>(null);
   const hasRecordedParticipantRef = useRef(false);
   const hasSubmittedResults = useRef(false);
@@ -91,7 +91,7 @@ function App() {
     }
   };
 
-  // ADD THIS NEW FUNCTION
+  // CHECK QUIZ STATUS FUNCTION
   const checkQuizStatus = async (courseId: string, week: string): Promise<boolean> => {
     try {
       const { data, error } = await supabase
@@ -107,7 +107,6 @@ function App() {
 
       return data.is_active === true;
     } catch (err) {
-      console.error('Error checking quiz status:', err);
       return false;
     }
   };
@@ -146,31 +145,36 @@ function App() {
       }
     };
 
-    // MODIFIED THIS SECTION TO ADD QUIZ STATUS CHECK
     const initializeQuiz = async () => {
-      if (hasRequiredParams()) {
-        const params = getUrlParams();
+      const params = getUrlParams();
 
-        // CHECK QUIZ STATUS FIRST
-        const isActive = await checkQuizStatus(params.course_id, params.week);
-        
-        if (!isActive) {
-          setError('This quiz is currently not active. Please contact your administrator or try again later.');
-          return;
-        }
-
-        // ONLY PROCEED IF QUIZ IS ACTIVE
-        setUserDetails({
-          name: params.name,
-          email: params.email,
-          mobile: '',
-          college: '',
-          course_id: params.course_id,
-          week: params.week
-        });
-        recordParticipantAccess();
-        setQuizState('welcome');
+      // CHECK IF REQUIRED PARAMS EXIST
+      if (!hasRequiredParams()) {
+        setLoading(false);
+        return;
       }
+
+      // CHECK QUIZ STATUS
+      const isActive = await checkQuizStatus(params.course_id, params.week);
+      
+      if (!isActive) {
+        setError('INACTIVE');
+        setLoading(false);
+        return;
+      }
+
+      // QUIZ IS ACTIVE - PROCEED NORMALLY
+      setUserDetails({
+        name: params.name,
+        email: params.email,
+        mobile: '',
+        college: '',
+        course_id: params.course_id,
+        week: params.week
+      });
+      recordParticipantAccess();
+      setLoading(false);
+      setQuizState('welcome');
     };
 
     initializeQuiz();
@@ -251,6 +255,30 @@ function App() {
     hasSubmittedResults.current = false;
     setQuizState('welcome');
   };
+
+  // SHOW LOADING
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-16 w-16 border-4 border-emerald-500 border-t-transparent mb-4"></div>
+          <div className="text-white text-xl">Loading...</div>
+        </div>
+      </div>
+    );
+  }
+
+  // SHOW INVALID PAGE IF QUIZ IS INACTIVE
+  if (error === 'INACTIVE') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
+        <div className="text-center">
+          <h1 className="text-4xl font-bold text-white mb-4">Invalid Page</h1>
+          <p className="text-gray-400">This quiz is currently not available.</p>
+        </div>
+      </div>
+    );
+  }
 
   if (quizState === 'user-details') {
     if (hasRequiredParams()) {
