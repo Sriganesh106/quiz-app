@@ -213,11 +213,11 @@ const Results: React.FC<ResultsProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col items-center justify-center p-4">
       <motion.div 
         initial={{ scale: 0.8, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        className="bg-white/10 backdrop-blur-lg border border-white/20 p-8 rounded-2xl shadow-2xl max-w-2xl w-full"
+        className="bg-white/10 backdrop-blur-sm border border-white/20 p-8 rounded-2xl shadow-2xl max-w-2xl w-full"
       >
         <div className="text-center">
           <div className="w-20 h-20 bg-emerald-500/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-6 border-2 border-emerald-400">
@@ -227,17 +227,17 @@ const Results: React.FC<ResultsProps> = ({
           <p className="text-gray-300 mb-8">Your results have been saved successfully.</p>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div className="bg-blue-500/20 backdrop-blur-sm border border-blue-400/30 p-4 rounded-xl">
-              <div className="text-blue-300 font-semibold text-lg mb-1">Score</div>
+            <div className="bg-emerald-500/20 backdrop-blur-sm border border-emerald-400/30 p-4 rounded-xl">
+              <div className="text-emerald-300 font-semibold text-lg mb-1">Score</div>
               <div className="text-3xl font-bold text-white">{correctAnswers}/{totalQuestions}</div>
-              <div className="text-sm text-blue-200">{scorePercentage}%</div>
+              <div className="text-sm text-emerald-200">{scorePercentage}%</div>
             </div>
-            <div className="bg-purple-500/20 backdrop-blur-sm border border-purple-400/30 p-4 rounded-xl">
-              <div className="text-purple-300 font-semibold text-lg mb-1">Time Spent</div>
+            <div className="bg-blue-500/20 backdrop-blur-sm border border-blue-400/30 p-4 rounded-xl">
+              <div className="text-blue-300 font-semibold text-lg mb-1">Time Spent</div>
               <div className="text-2xl font-bold text-white">
                 {minutes}:{seconds < 10 ? `0${seconds}` : seconds}
               </div>
-              <div className="text-sm text-purple-200">minutes</div>
+              <div className="text-sm text-blue-200">minutes</div>
             </div>
             <div className="bg-emerald-500/20 backdrop-blur-sm border border-emerald-400/30 p-4 rounded-xl">
               <div className="text-emerald-300 font-semibold text-lg mb-1">Performance</div>
@@ -256,28 +256,28 @@ const Results: React.FC<ResultsProps> = ({
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
               <div className="flex items-center gap-3 bg-white/5 backdrop-blur-sm p-3 rounded-lg border border-white/10">
-                <User className="w-5 h-5 text-blue-400" />
+                <User className="w-5 h-5 text-emerald-400" />
                 <div>
                   <div className="text-xs text-gray-400">Name</div>
                   <div className="font-semibold text-white">{userName || 'N/A'}</div>
                 </div>
               </div>
               <div className="flex items-center gap-3 bg-white/5 backdrop-blur-sm p-3 rounded-lg border border-white/10">
-                <Mail className="w-5 h-5 text-emerald-400" />
+                <Mail className="w-5 h-5 text-blue-400" />
                 <div>
                   <div className="text-xs text-gray-400">Email</div>
                   <div className="font-semibold text-white text-sm break-all">{userEmail || 'N/A'}</div>
                 </div>
               </div>
               <div className="flex items-center gap-3 bg-white/5 backdrop-blur-sm p-3 rounded-lg border border-white/10">
-                <Phone className="w-5 h-5 text-purple-400" />
+                <Phone className="w-5 h-5 text-emerald-400" />
                 <div>
                   <div className="text-xs text-gray-400">Mobile</div>
                   <div className="font-semibold text-white">{userMobile || 'N/A'}</div>
                 </div>
               </div>
               <div className="flex items-center gap-3 bg-white/5 backdrop-blur-sm p-3 rounded-lg border border-white/10">
-                <GraduationCap className="w-5 h-5 text-orange-400" />
+                <GraduationCap className="w-5 h-5 text-blue-400" />
                 <div>
                   <div className="text-xs text-gray-400">College</div>
                   <div className="font-semibold text-white text-sm">{userCollege || 'N/A'}</div>
@@ -289,7 +289,7 @@ const Results: React.FC<ResultsProps> = ({
           {/* Download PDF Report Button */}
           <button
             onClick={handleDownloadPDF}
-            className="w-full mb-4 px-6 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl font-bold hover:from-emerald-600 hover:to-emerald-700 transition-all transform hover:scale-105 flex items-center justify-center gap-2 shadow-xl"
+            className="w-full mb-4 px-6 py-3 bg-gradient-to-r from-emerald-500 to-blue-500 text-white rounded-xl font-bold hover:from-emerald-600 hover:to-blue-600 transition-all transform hover:scale-105 flex items-center justify-center gap-2 shadow-xl"
           >
             <Download size={20} />
             Download PDF Report
@@ -298,7 +298,7 @@ const Results: React.FC<ResultsProps> = ({
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button
               onClick={onRestart}
-              className="px-6 py-3 bg-purple-600 text-white rounded-xl font-medium hover:bg-purple-700 transition-colors flex items-center justify-center gap-2 shadow-lg"
+              className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-blue-500 text-white rounded-xl font-bold hover:from-emerald-600 hover:to-blue-600 transition-all transform hover:scale-105 flex items-center justify-center gap-2 shadow-xl"
             >
               <RotateCcw size={18} />
               Take Quiz Again
