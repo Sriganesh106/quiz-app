@@ -37,7 +37,7 @@ function App() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<QuizAnswer[]>([]);
   const [timeTaken, setTimeTaken] = useState(0);
-  const [loading, setLoading] = useState(true); // Start with loading true
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const hasRecordedParticipantRef = useRef(false);
   const hasSubmittedResults = useRef(false);
@@ -74,24 +74,8 @@ function App() {
         .single();
 
       if (error?.code === 'PGRST116' || !data) {
-        console.log('ℹ️ No status found, creating inactive entry');
-        const { data: newStatus, error: insertError } = await supabase
-          .from('quiz_status')
-          .insert([{ 
-            course_id: courseId, 
-            week, 
-            is_active: false 
-          }])
-          .select()
-          .single();
-
-        if (insertError) {
-          console.error('❌ Error creating status:', insertError);
-          return false;
-        }
-
-        console.log('✅ Created new status:', newStatus);
-        return newStatus?.is_active || false;
+        console.log('ℹ️ No status found, quiz is inactive by default');
+        return false; // Changed: Don't create entry, just return false
       }
 
       console.log('📊 Current status:', data.is_active);
@@ -138,8 +122,17 @@ function App() {
       console.log('🔗 URL params:', params);
       
       if (!params.course_id || !params.week) {
-        const errorMsg = '❌ Missing course_id or week in URL';
-        console.error(errorMsg);
+        const errorMsg = 'Missing course_id or week in URL';
+        console.error('❌', errorMsg);
+        setError(errorMsg);
+        setLoading(false);
+        return;
+      }
+
+      // Check if course_id and week are allowed
+      if (!ALLOWED_COURSE_IDS.includes(params.course_id) || !ALLOWED_WEEKS.includes(params.week)) {
+        const errorMsg = 'Invalid course or week specified';
+        console.error('❌', errorMsg);
         setError(errorMsg);
         setLoading(false);
         return;
@@ -152,17 +145,16 @@ function App() {
         console.log('✅ Quiz active status:', isActive);
         
         if (!isActive) {
-          const errorMsg = '⛔ This quiz is currently inactive. Please try again later.';
-          console.log(errorMsg);
+          const errorMsg = 'This quiz is currently inactive. Please contact your administrator or try again later.';
+          console.log('⛔', errorMsg);
           setError(errorMsg);
-          setQuizState('user-details');
           setLoading(false);
           return;
         }
 
-        // Only proceed if quiz is active
+        // Only proceed if quiz is active and has required params
         if (hasRequiredParams()) {
-          console.log('🎯 Quiz is active, initializing...');
+          console.log('🎯 Quiz is active and params are valid, initializing...');
           setUserDetails({
             name: params.name,
             email: params.email,
@@ -174,8 +166,12 @@ function App() {
           
           const questionsLoaded = await loadQuestions(params.course_id, params.week);
           if (questionsLoaded) {
-            setQuizState('welcome');
+            setQuizState('user-details'); // Start with user details form
+            setLoading(false);
           }
+        } else {
+          setError('Missing required parameters (name or email) in URL');
+          setLoading(false);
         }
       } catch (err) {
         console.error('❌ Error initializing quiz:', err);
@@ -289,6 +285,7 @@ function App() {
   }
 
   if (error) {
+    const params = getUrlParams();
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <div className="max-w-md w-full bg-white p-8 rounded-lg shadow-md text-center">
@@ -310,12 +307,12 @@ function App() {
           </div>
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Quiz Unavailable</h2>
           <p className="text-gray-600 mb-6">{error}</p>
-          {error.includes('inactive') && (
+          {error.includes('inactive') && params.course_id && params.week && (
             <div className="mb-4 p-3 bg-yellow-50 border-l-4 border-yellow-400 text-yellow-700">
-              <p className="font-medium">Note:</p>
-              <p className="text-sm">If you're the admin, you can activate this quiz in the Supabase dashboard by running:</p>
-              <code className="block bg-gray-100 p-2 rounded text-xs mt-2">
-                UPDATE quiz_status SET is_active = true WHERE course_id = '3' AND week = '1';
+              <p className="font-medium">Note for Admin:</p>
+              <p className="text-sm">To activate this quiz, run this query in Supabase:</p>
+              <code className="block bg-gray-100 p-2 rounded text-xs mt-2 text-gray-800">
+                UPDATE quiz_status SET is_active = true WHERE course_id = '{params.course_id}' AND week = '{params.week}';
               </code>
             </div>
           )}
