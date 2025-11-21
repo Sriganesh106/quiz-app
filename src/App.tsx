@@ -91,6 +91,27 @@ function App() {
     }
   };
 
+  // ADD THIS NEW FUNCTION
+  const checkQuizStatus = async (courseId: string, week: string): Promise<boolean> => {
+    try {
+      const { data, error } = await supabase
+        .from('quiz_status')
+        .select('is_active')
+        .eq('course_id', courseId)
+        .eq('week', week)
+        .single();
+
+      if (error || !data) {
+        return false;
+      }
+
+      return data.is_active === true;
+    } catch (err) {
+      console.error('Error checking quiz status:', err);
+      return false;
+    }
+  };
+
   useEffect(() => {
     const recordParticipantAccess = async () => {
       if (hasRecordedParticipantRef.current) return;
@@ -125,19 +146,34 @@ function App() {
       }
     };
 
-    if (hasRequiredParams()) {
-      const params = getUrlParams();
-      setUserDetails({
-        name: params.name,
-        email: params.email,
-        mobile: '',
-        college: '',
-        course_id: params.course_id,
-        week: params.week
-      });
-      recordParticipantAccess();
-      setQuizState('welcome');
-    }
+    // MODIFIED THIS SECTION TO ADD QUIZ STATUS CHECK
+    const initializeQuiz = async () => {
+      if (hasRequiredParams()) {
+        const params = getUrlParams();
+
+        // CHECK QUIZ STATUS FIRST
+        const isActive = await checkQuizStatus(params.course_id, params.week);
+        
+        if (!isActive) {
+          setError('This quiz is currently not active. Please contact your administrator or try again later.');
+          return;
+        }
+
+        // ONLY PROCEED IF QUIZ IS ACTIVE
+        setUserDetails({
+          name: params.name,
+          email: params.email,
+          mobile: '',
+          college: '',
+          course_id: params.course_id,
+          week: params.week
+        });
+        recordParticipantAccess();
+        setQuizState('welcome');
+      }
+    };
+
+    initializeQuiz();
   }, []);
 
   const handleUserDetailsSubmit = async (details: { mobile: string; college: string }) => {
