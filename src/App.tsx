@@ -9,6 +9,10 @@ import Results from './components/Results';
 import UserDetailsForm from './components/UserDetailsForm';
 import { supabase } from './lib/supabase';
 
+// TEST DEPLOYMENT - DELETE THIS AFTER TESTING
+console.log('🚀🚀🚀 DEPLOYMENT TEST V4 - ' + new Date().toISOString());
+alert('🔥 NEW CODE DEPLOYED! Version 4.0');
+
 const ALLOWED_COURSE_IDS = ['3', '4', '7', '8'];
 const ALLOWED_WEEKS = ['1', '2', '3'];
 
