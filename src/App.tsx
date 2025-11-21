@@ -425,56 +425,56 @@ function App() {
   }
 
   if (quizState === 'results') {
-    const correctAnswers = answers.filter((a) => a.isCorrect).length;
-    const totalQuestions = questions.length;
+  const correctAnswers = answers.filter((a) => a.isCorrect).length;
+  const totalQuestions = questions.length;
 
-    if (userDetails && !hasSubmittedResults.current) {
-      hasSubmittedResults.current = true;
-      
-      const submitResults = async () => {
-        try {
-          console.log('Submitting quiz results...');
-          
-          const { error } = await supabase
-            .from('quiz_results')
-            .insert([{
-              name: userDetails.name,
-              email: userDetails.email,
-              mobile_number: userDetails.mobile || '',
-              college_name: userDetails.college || '',
-              course_id: userDetails.course_id || 'default',
-              week: userDetails.week || '1',
-              score: correctAnswers,
-              total_questions: totalQuestions,
-              time_taken_seconds: timeTaken
-            }]);
-          
-          if (error) {
-            console.error('Error saving results:', error);
-          } else {
-            console.log('Results saved successfully');
-          }
-        } catch (error) {
-          console.error('Error in submitResults:', error);
+  if (userDetails && !hasSubmittedResults.current) {
+    hasSubmittedResults.current = true;
+    
+    const submitResults = async () => {
+      try {
+        console.log('Submitting quiz results...');
+        
+        const { error } = await supabase
+          .from('quiz_results')
+          .insert([{
+            user_name: userDetails.name,
+            user_email: userDetails.email,
+            mobile_number: userDetails.mobile || '',
+            college_name: userDetails.college || '',
+            course_id: userDetails.course_id || 'default',
+            week: userDetails.week || '1',
+            score: correctAnswers,
+            total_questions: totalQuestions,
+            time_taken_seconds: timeTaken
+          }]);
+        
+        if (error) {
+          console.error('Error saving results:', error);
+        } else {
+          console.log('Results saved successfully');
         }
-      };
-      
-      submitResults();
-    }
-
-    return (
-      <Results
-        correctAnswers={correctAnswers}
-        totalQuestions={totalQuestions}
-        timeTaken={timeTaken}
-        onRestart={handleRestart}
-        userEmail={userDetails?.email}
-        userName={userDetails?.name}
-        userMobile={userDetails?.mobile}
-        userCollege={userDetails?.college}
-      />
-    );
+      } catch (error) {
+        console.error('Error in submitResults:', error);
+      }
+    };
+    
+    submitResults();
   }
+
+  return (
+    <Results
+      correctAnswers={correctAnswers}
+      totalQuestions={totalQuestions}
+      timeTaken={timeTaken}
+      onRestart={handleRestart}
+      userEmail={userDetails?.email}
+      userName={userDetails?.name}
+      userMobile={userDetails?.mobile}
+      userCollege={userDetails?.college}
+    />
+  );
+}
 
   if (error) {
     return (
