@@ -37,7 +37,7 @@ function App() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<QuizAnswer[]>([]);
   const [timeTaken, setTimeTaken] = useState(0);
-  const [loading, setLoading] = useState(true); // Start with loading true
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const hasRecordedParticipantRef = useRef(false);
   const hasSubmittedResults = useRef(false);
@@ -62,46 +62,6 @@ function App() {
   const currentQuestion = questions[currentQuestionIndex];
   const currentPhase = currentQuestion?.difficulty === 'boss' ? 'boss' : 'standard';
 
-  const checkQuizStatus = async (courseId: string, week: string): Promise<boolean> => {
-    console.log('🔍 Checking quiz status for:', { courseId, week });
-    
-    try {
-      const { data, error } = await supabase
-        .from('quiz_status')
-        .select('is_active')
-        .eq('course_id', courseId)
-        .eq('week', week)
-        .single();
-
-      if (error?.code === 'PGRST116' || !data) {
-        console.log('ℹ️ No status found, creating inactive entry');
-        const { data: newStatus, error: insertError } = await supabase
-          .from('quiz_status')
-          .insert([{ 
-            course_id: courseId, 
-            week, 
-            is_active: false 
-          }])
-          .select()
-          .single();
-
-        if (insertError) {
-          console.error('❌ Error creating status:', insertError);
-          return false;
-        }
-
-        console.log('✅ Created new status:', newStatus);
-        return newStatus?.is_active || false;
-      }
-
-      console.log('📊 Current status:', data.is_active);
-      return data.is_active;
-    } catch (err) {
-      console.error('❌ Error in checkQuizStatus:', err);
-      return false;
-    }
-  };
-
   const loadQuestions = async (courseId: string, week: string) => {
     try {
       setLoading(true);
@@ -124,7 +84,7 @@ function App() {
       return true;
     } catch (err) {
       console.error('Error loading questions:', err);
-      setError('Failed to load quiz questions. Please try again later.');
+      setError('Failed to load quiz questions. Invalid course or week specified.');
       return false;
     } finally {
       setLoading(false);
@@ -132,59 +92,52 @@ function App() {
   };
 
   useEffect(() => {
-    const initializeQuiz = async () => {
-      console.log('🚀 Initializing quiz...');
+    const recordParticipantAccess = async () => {
+      if (hasRecordedParticipantRef.current) return;
       const params = getUrlParams();
-      console.log('🔗 URL params:', params);
-      
-      if (!params.course_id || !params.week) {
-        const errorMsg = '❌ Missing course_id or week in URL';
-        console.error(errorMsg);
-        setError(errorMsg);
-        setLoading(false);
+
+      if (!params.name || !params.email || !params.course_id || !params.week) {
         return;
       }
 
       try {
-        // First check if quiz is active
-        console.log('🔍 Checking quiz status...');
-        const isActive = await checkQuizStatus(params.course_id, params.week);
-        console.log('✅ Quiz active status:', isActive);
-        
-        if (!isActive) {
-          const errorMsg = '⛔ This quiz is currently inactive. Please try again later.';
-          console.log(errorMsg);
-          setError(errorMsg);
-          setQuizState('user-details');
-          setLoading(false);
-          return;
-        }
+        console.log('Recording participant:', params);
 
-        // Only proceed if quiz is active
-        if (hasRequiredParams()) {
-          console.log('🎯 Quiz is active, initializing...');
-          setUserDetails({
+        const { error } = await supabase
+          .from('quiz_participants')
+          .insert([{
             name: params.name,
             email: params.email,
-            mobile: '',
-            college: '',
             course_id: params.course_id,
-            week: params.week
-          });
-          
-          const questionsLoaded = await loadQuestions(params.course_id, params.week);
-          if (questionsLoaded) {
-            setQuizState('welcome');
-          }
+            week: params.week,
+            first_accessed: new Date().toISOString()
+          }]);
+
+        if (error) {
+          console.error('Supabase error:', error);
+          throw error;
         }
+
+        console.log('Participant recorded successfully');
+        hasRecordedParticipantRef.current = true;
       } catch (err) {
-        console.error('❌ Error initializing quiz:', err);
-        setError('Failed to initialize quiz. Please try again.');
-        setLoading(false);
+        console.error('Error recording participant access:', err);
       }
     };
 
-    initializeQuiz();
+    if (hasRequiredParams()) {
+      const params = getUrlParams();
+      setUserDetails({
+        name: params.name,
+        email: params.email,
+        mobile: '',
+        college: '',
+        course_id: params.course_id,
+        week: params.week
+      });
+      recordParticipantAccess();
+      setQuizState('welcome');
+    }
   }, []);
 
   const handleUserDetailsSubmit = async (details: { mobile: string; college: string }) => {
@@ -200,8 +153,16 @@ function App() {
     setQuizState('welcome');
   };
 
-  const handleStartQuiz = () => {
-    setQuizState('countdown');
+  const startQuiz = async () => {
+    if (!userDetails?.course_id || !userDetails?.week) {
+      setError('Course ID or Week is missing');
+      return;
+    }
+
+    const success = await loadQuestions(userDetails.course_id, userDetails.week);
+    if (success) {
+      setQuizState('countdown');
+    }
   };
 
   const handleCountdownComplete = () => {
@@ -219,54 +180,32 @@ function App() {
       isCorrect,
     };
 
-    setAnswers([...answers, newAnswer]);
+    const newAnswers = [...answers, newAnswer];
+    setAnswers(newAnswers);
 
     if (currentQuestionIndex === questions.length - 1) {
       setQuizState('results');
-      recordQuizCompletion();
-    } else if (currentQuestion.difficulty === 'boss' && currentQuestionIndex < questions.length - 1) {
-      setQuizState('boss-transition');
-    } else {
-      setCurrentQuestionIndex(currentQuestionIndex + 1);
+      return;
     }
+
+    const nextQuestion = questions[currentQuestionIndex + 1];
+    if (currentQuestion.difficulty === 'standard' && nextQuestion?.difficulty === 'boss') {
+      console.log('Transitioning to boss round');
+      setCurrentQuestionIndex(currentQuestionIndex + 1);
+      setQuizState('boss-transition');
+      return;
+    }
+
+    setCurrentQuestionIndex(currentQuestionIndex + 1);
   };
 
-  const handleBossTransitionComplete = () => {
-    setCurrentQuestionIndex(currentQuestionIndex + 1);
+  const startBossRound = () => {
+    console.log('Starting boss round at index:', currentQuestionIndex);
     setQuizState('quiz');
   };
 
-  const recordQuizCompletion = async () => {
-    if (!userDetails || hasSubmittedResults.current) return;
-    hasSubmittedResults.current = true;
-
-    const score = answers.filter(a => a.isCorrect).length;
-    const total = questions.length;
-
-    try {
-      const { error } = await supabase
-        .from('quiz_results')
-        .insert([{
-          name: userDetails.name,
-          email: userDetails.email,
-          mobile: userDetails.mobile,
-          college: userDetails.college,
-          course_id: userDetails.course_id,
-          week: userDetails.week,
-          score,
-          total_questions: total,
-          time_taken: Math.round(timeTaken / 1000),
-          answers: answers.map(a => ({
-            question_id: a.questionId,
-            user_answer: a.userAnswer,
-            is_correct: a.isCorrect
-          }))
-        }]);
-
-      if (error) throw error;
-    } catch (err) {
-      console.error('Error saving quiz results:', err);
-    }
+  const handleTimeUpdate = (time: number) => {
+    setTimeTaken(time);
   };
 
   const handleRestart = () => {
@@ -277,51 +216,231 @@ function App() {
     setQuizState('welcome');
   };
 
-  if (loading) {
+  if (quizState === 'user-details') {
+    if (hasRequiredParams()) {
+      return <UserDetailsForm onSubmit={handleUserDetailsSubmit} />;
+    }
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-          <p className="mt-4 text-lg text-gray-600">Loading quiz...</p>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white/10 backdrop-blur-sm rounded-2xl p-8 text-center border border-white/20">
+          <h1 className="text-3xl font-bold text-white mb-6">Quiz Challenge</h1>
+          <p className="text-gray-300 mb-6">
+            Please provide the required parameters in the URL:
+            <br />
+            name, email, course_id, and week
+          </p>
+          <div className="text-left bg-black/30 p-4 rounded-lg mb-6">
+            <p className="text-sm text-gray-400 mb-2">Example URL:</p>
+            <code className="text-xs bg-black/50 p-2 rounded block overflow-x-auto">
+              ?name=John&email=john@example.com&course_id=3&week=1
+            </code>
+          </div>
+          <p className="text-sm text-gray-400">
+            Allowed course IDs: {ALLOWED_COURSE_IDS.join(', ')}<br />
+            Allowed weeks: {ALLOWED_WEEKS.join(', ')}
+          </p>
         </div>
       </div>
     );
   }
 
+  if (quizState === 'welcome') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
+        <div
+          className="text-center max-w-2xl"
+          style={{
+            animation: 'fadeIn 0.6s ease-out',
+          }}
+        >
+          <div className="mb-8">
+            <div className="inline-flex items-center justify-center w-24 h-24 bg-gradient-to-br from-emerald-400 to-blue-500 rounded-full mb-6 shadow-2xl">
+              <Sparkles className="w-12 h-12 text-white" />
+            </div>
+            <h1 className="text-6xl font-bold text-white mb-4 tracking-tight">
+              Quiz Challenge
+            </h1>
+            {userDetails?.course_id && userDetails?.week && (
+              <div className="mb-6">
+                <p className="text-xl text-gray-300 mb-2">
+                  Welcome, <span className="text-emerald-400 font-semibold">{userDetails.name}</span>!
+                </p>
+                <p className="text-lg text-gray-400">
+                  Course {userDetails.course_id} • Week {userDetails.week}
+                </p>
+              </div>
+            )}
+          </div>
+
+          <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 mb-8 border border-white/20">
+            <div className="grid md:grid-cols-2 gap-6 text-left">
+              <div className="bg-emerald-500/20 rounded-xl p-4 border border-emerald-400/30">
+                <div className="text-emerald-300 font-semibold mb-2">
+                  Standard Round
+                </div>
+                <div className="text-white text-sm">
+                  8 questions of normal difficulty to warm you up
+                </div>
+              </div>
+              <div className="bg-red-500/20 rounded-xl p-4 border border-red-400/30">
+                <div className="text-red-300 font-semibold mb-2">
+                  Final Boss Round
+                </div>
+                <div className="text-white text-sm">
+                  7 challenging questions to test your expertise
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <button
+            onClick={startQuiz}
+            className="bg-gradient-to-r from-emerald-500 to-blue-500 text-white text-xl font-bold py-5 px-12 rounded-2xl hover:from-emerald-600 hover:to-blue-600 transition-all duration-200 transform hover:scale-105 shadow-2xl"
+            disabled={loading}
+          >
+            {loading ? 'Loading...' : 'Start Quiz'}
+          </button>
+
+          <div className="mt-8 text-gray-400 text-sm">
+            {questions.length} Questions • Timed Challenge • Track Your Progress
+          </div>
+        </div>
+
+        <style>{`
+          @keyframes fadeIn {
+            from {
+              opacity: 0;
+              transform: translateY(20px);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
+        `}</style>
+      </div>
+    );
+  }
+
+  if (quizState === 'countdown') {
+    return <Countdown onComplete={handleCountdownComplete} />;
+  }
+
+  if (quizState === 'boss-transition') {
+    return <BossTransition onComplete={startBossRound} />;
+  }
+
+  if (quizState === 'quiz' && currentQuestion) {
+    const isBossRound = currentQuestion.difficulty === 'boss';
+    return (
+      <div className={`min-h-screen py-8 px-4 transition-colors duration-700 ${
+        isBossRound 
+          ? 'bg-gradient-to-br from-red-900 via-red-800 to-orange-900' 
+          : 'bg-gradient-to-br from-gray-50 to-gray-100'
+      }`}>
+        <div className="max-w-4xl mx-auto">
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
+            <h1 className={`text-xl sm:text-2xl md:text-3xl font-bold break-words text-center sm:text-left ${
+              isBossRound ? 'text-white' : 'text-gray-900'
+            }`}>
+              {isBossRound ? 'Final Boss Round' : 'Standard Round'}
+            </h1>
+            <Timer isRunning={true} onTimeUpdate={handleTimeUpdate} />
+          </div>
+
+          <ProgressLine
+            currentQuestion={currentQuestionIndex + 1}
+            totalQuestions={questions.length}
+            phase={currentPhase}
+          />
+
+          <QuestionCard
+            question={currentQuestion}
+            onAnswer={handleAnswer}
+            questionNumber={currentQuestionIndex + 1}
+            totalQuestions={questions.length}
+            isBossRound={isBossRound}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  if (quizState === 'results') {
+    const correctAnswers = answers.filter((a) => a.isCorrect).length;
+    const totalQuestions = questions.length;
+    const scorePercentage = Math.round((correctAnswers / totalQuestions) * 100);
+
+    if (userDetails && !hasSubmittedResults.current) {
+      hasSubmittedResults.current = true;
+      
+      const submitResults = async () => {
+        try {
+          console.log('Submitting quiz results...');
+          
+          const { data, error } = await supabase.rpc('submit_quiz_with_details', {
+            p_user_name: userDetails.name,
+            p_email: userDetails.email,
+            p_mobile_number: userDetails.mobile || '',
+            p_college_name: userDetails.college || '',
+            p_course_id: userDetails.course_id || 'default',
+            p_week: userDetails.week || '1',
+            p_total_questions: totalQuestions,
+            p_correct_answers: correctAnswers,
+            p_time_taken_seconds: timeTaken,
+            p_answers: answers
+          });
+          
+          if (error) {
+            console.error('Error details:', error);
+            throw error;
+          }
+          
+          console.log('Success:', data);
+          return data;
+        } catch (error) {
+          console.error('Error in submitResults:', error);
+          throw error;
+        }
+      };
+      
+      submitResults();
+    }
+
+    return (
+      <Results
+        correctAnswers={correctAnswers}
+        totalQuestions={totalQuestions}
+        timeTaken={timeTaken}
+        onRestart={handleRestart}
+        userEmail={userDetails?.email}
+        userName={userDetails?.name}
+        userMobile={userDetails?.mobile}
+        userCollege={userDetails?.college}
+      />
+    );
+  }
+
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-        <div className="max-w-md w-full bg-white p-8 rounded-lg shadow-md text-center">
-          <div className="text-red-500 mb-4">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-12 w-12 mx-auto"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-              />
-            </svg>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
+        <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-8 max-w-md">
+          <p className="text-red-800 text-center mb-4">{error}</p>
+          <div className="text-left bg-red-100 p-4 rounded-lg mb-4">
+            <p className="font-semibold mb-2">Required URL Parameters:</p>
+            <ul className="list-disc pl-5 space-y-1 text-sm text-red-700">
+              <li><code>name</code>: Student name</li>
+              <li><code>email</code>: Student email</li>
+              <li><code>course_id</code>: Must be one of {ALLOWED_COURSE_IDS.join(', ')}</li>
+              <li><code>week</code>: Must be one of {ALLOWED_WEEKS.join(', ')}</li>
+            </ul>
           </div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Quiz Unavailable</h2>
-          <p className="text-gray-600 mb-6">{error}</p>
-          {error.includes('inactive') && (
-            <div className="mb-4 p-3 bg-yellow-50 border-l-4 border-yellow-400 text-yellow-700">
-              <p className="font-medium">Note:</p>
-              <p className="text-sm">If you're the admin, you can activate this quiz in the Supabase dashboard by running:</p>
-              <code className="block bg-gray-100 p-2 rounded text-xs mt-2">
-                UPDATE quiz_status SET is_active = true WHERE course_id = '3' AND week = '1';
-              </code>
-            </div>
-          )}
+          <p className="text-sm text-gray-600 mb-4 text-center">
+            Example: <code>?name=John&email=test@example.com&course_id=3&week=1</code>
+          </p>
           <button
             onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            className="w-full bg-red-600 text-white font-semibold py-3 px-6 rounded-xl hover:bg-red-700 transition-colors"
           >
             Try Again
           </button>
@@ -331,72 +450,12 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {quizState === 'user-details' && userDetails && (
-        <UserDetailsForm
-          onSubmit={handleUserDetailsSubmit}
-          initialValues={{
-            mobile: userDetails.mobile || '',
-            college: userDetails.college || ''
-          }}
-        />
-      )}
-
-      {quizState === 'welcome' && userDetails && (
-        <div className="max-w-3xl mx-auto p-6">
-          <div className="bg-white rounded-lg shadow-md p-8 text-center">
-            <h1 className="text-3xl font-bold text-gray-800 mb-4">
-              Welcome to the Quiz, {userDetails.name}!
-            </h1>
-            <p className="text-gray-600 mb-8">
-              You're about to take the quiz for Course {userDetails.course_id}, Week {userDetails.week}.
-              Make sure you're ready before starting.
-            </p>
-            <button
-              onClick={handleStartQuiz}
-              className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center mx-auto"
-            >
-              <Sparkles className="mr-2" size={20} />
-              Start Quiz
-            </button>
-          </div>
-        </div>
-      )}
-
-      {quizState === 'countdown' && (
-        <Countdown onComplete={handleCountdownComplete} />
-      )}
-
-      {quizState === 'quiz' && currentQuestion && (
-        <div className="max-w-3xl mx-auto p-4">
-          <ProgressLine
-            current={currentQuestionIndex + 1}
-            total={questions.length}
-            isBoss={currentQuestion.difficulty === 'boss'}
-          />
-          <Timer onTimeUpdate={setTimeTaken} running={quizState === 'quiz'} />
-          <QuestionCard
-            question={currentQuestion}
-            questionNumber={currentQuestionIndex + 1}
-            totalQuestions={questions.length}
-            onAnswer={handleAnswer}
-          />
-        </div>
-      )}
-
-      {quizState === 'boss-transition' && (
-        <BossTransition onComplete={handleBossTransitionComplete} />
-      )}
-
-      {quizState === 'results' && userDetails && (
-        <Results
-          answers={answers}
-          questions={questions}
-          timeTaken={timeTaken}
-          onRestart={handleRestart}
-          userDetails={userDetails}
-        />
-      )}
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
+      <div className="text-center">
+        <div className="inline-block animate-spin rounded-full h-16 w-16 border-4 border-emerald-500 border-t-transparent mb-4"></div>
+        <div className="text-white text-xl">Loading quiz...</div>
+        <p className="text-gray-400 text-sm mt-2">Preparing your questions...</p>
+      </div>
     </div>
   );
 }
