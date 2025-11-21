@@ -12,7 +12,7 @@ import { supabase } from './lib/supabase';
 const ALLOWED_COURSE_IDS = ['3', '4', '7', '8'];
 const ALLOWED_WEEKS = ['1', '2', '3'];
 
-type QuizState = 'user-details' | 'welcome' | 'countdown' | 'quiz' | 'boss-transition' | 'results' | 'error';
+type QuizState = 'user-details' | 'welcome' | 'countdown' | 'quiz' | 'boss-transition' | 'results';
 
 interface UserDetails {
   name: string;
@@ -39,6 +39,7 @@ function App() {
   const [timeTaken, setTimeTaken] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isQuizActive, setIsQuizActive] = useState(false); // Add this state
   const hasRecordedParticipantRef = useRef(false);
   const hasSubmittedResults = useRef(false);
 
@@ -52,51 +53,58 @@ function App() {
     };
   };
 
+  const hasRequiredParams = () => {
+    const params = getUrlParams();
+    const isCourseAllowed = ALLOWED_COURSE_IDS.includes(params.course_id);
+    const isWeekAllowed = ALLOWED_WEEKS.includes(params.week);
+    return params.name && params.email && isCourseAllowed && isWeekAllowed;
+  };
+
   const currentQuestion = questions[currentQuestionIndex];
 
   useEffect(() => {
-    const initializeQuiz = async () => {
-      console.log('🚀 Starting quiz initialization...');
+    const checkAndInitialize = async () => {
+      console.log('Starting initialization...');
       const params = getUrlParams();
-      console.log('🔗 URL parameters:', params);
       
+      // Basic validation
+      if (!params.course_id || !params.week) {
+        setError('Missing course_id or week in URL');
+        setLoading(false);
+        return;
+      }
+
+      if (!params.name || !params.email) {
+        setError('Missing name or email in URL');
+        setLoading(false);
+        return;
+      }
+
       try {
-        // Validate required parameters
-        if (!params.course_id || !params.week || !params.name || !params.email) {
-          throw new Error('Missing required parameters in URL');
-        }
-
-        // Check if course and week are allowed
-        if (!ALLOWED_COURSE_IDS.includes(params.course_id) || !ALLOWED_WEEKS.includes(params.week)) {
-          throw new Error(`Invalid course (${params.course_id}) or week (${params.week})`);
-        }
-
-        // Check quiz status
-        console.log('🔍 Checking quiz status...');
+        // Check quiz status FIRST
+        console.log('Checking quiz status for:', params.course_id, params.week);
         const { data: statusData, error: statusError } = await supabase
           .from('quiz_status')
-          .select('*')
+          .select('is_active')
           .eq('course_id', params.course_id)
           .eq('week', params.week)
-          .maybeSingle();
+          .single();
 
-        console.log('📊 Status query result:', { statusData, statusError });
+        console.log('Status result:', statusData, statusError);
 
-        if (statusError) {
-          throw new Error('Failed to check quiz status');
+        // Handle the quiz status check result
+        if (!statusData || statusData.is_active === false) {
+          console.log('Quiz is inactive!');
+          setError(`This quiz (Course ${params.course_id}, Week ${params.week}) is currently inactive.`);
+          setIsQuizActive(false);
+          setLoading(false);
+          return; // STOP HERE if quiz is inactive
         }
 
-        // Check if quiz exists and is active
-        if (!statusData) {
-          throw new Error(`Quiz not found for Course ${params.course_id}, Week ${params.week}`);
-        }
-
-        if (!statusData.is_active) {
-          throw new Error(`This quiz (Course ${params.course_id}, Week ${params.week}) is currently inactive. Please contact your administrator.`);
-        }
-
-        console.log('✅ Quiz is active, loading questions...');
-
+        // Quiz is active, continue with loading
+        console.log('Quiz is active, loading questions...');
+        setIsQuizActive(true);
+        
         // Load questions
         const { data: questionsData, error: questionsError } = await supabase
           .from('quiz_questions')
@@ -105,17 +113,13 @@ function App() {
           .eq('week', params.week)
           .order('order_number', { ascending: true });
 
-        if (questionsError) {
-          throw new Error('Failed to load quiz questions');
-        }
-
         if (!questionsData || questionsData.length === 0) {
-          throw new Error('No questions found for this quiz');
+          setError('No questions found for this quiz');
+          setLoading(false);
+          return;
         }
 
-        console.log('✅ Questions loaded:', questionsData.length);
-
-        // Set state
+        // Everything is good, set up the quiz
         setQuestions(questionsData as QuizQuestion[]);
         setUserDetails({
           name: params.name,
@@ -125,19 +129,17 @@ function App() {
           course_id: params.course_id,
           week: params.week
         });
-        setQuizState('user-details');
         setError(null);
+        setLoading(false);
 
-      } catch (err: any) {
-        console.error('❌ Initialization error:', err);
-        setError(err.message || 'Failed to initialize quiz');
-        setQuizState('error');
-      } finally {
+      } catch (err) {
+        console.error('Error:', err);
+        setError('Failed to load quiz. Please try again.');
         setLoading(false);
       }
     };
 
-    initializeQuiz();
+    checkAndInitialize();
   }, []);
 
   const handleUserDetailsSubmit = async (details: { mobile: string; college: string }) => {
@@ -217,7 +219,6 @@ function App() {
         }]);
 
       if (error) throw error;
-      console.log('✅ Quiz results saved successfully');
     } catch (err) {
       console.error('Error saving quiz results:', err);
     }
@@ -231,7 +232,7 @@ function App() {
     setQuizState('welcome');
   };
 
-  // Loading state
+  // Show loading
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -243,8 +244,8 @@ function App() {
     );
   }
 
-  // Error state
-  if (error || quizState === 'error') {
+  // Show error if quiz is inactive or there's any error
+  if (error || !isQuizActive) {
     const params = getUrlParams();
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
@@ -266,8 +267,8 @@ function App() {
             </svg>
           </div>
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Quiz Unavailable</h2>
-          <p className="text-gray-600 mb-6">{error}</p>
-          {error?.includes('inactive') && params.course_id && params.week && (
+          <p className="text-gray-600 mb-6">{error || 'This quiz is currently inactive.'}</p>
+          {params.course_id && params.week && (
             <div className="mb-4 p-3 bg-yellow-50 border-l-4 border-yellow-400 text-yellow-700 text-left">
               <p className="font-medium">For Administrator:</p>
               <p className="text-sm mt-1">To activate this quiz, run this SQL query in Supabase:</p>
@@ -276,18 +277,12 @@ function App() {
               </code>
             </div>
           )}
-          <button
-            onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-          >
-            Try Again
-          </button>
         </div>
       </div>
     );
   }
 
-  // Rest of your component remains the same
+  // If we reach here, quiz is active and loaded
   return (
     <div className="min-h-screen bg-gray-50">
       {quizState === 'user-details' && userDetails && (
