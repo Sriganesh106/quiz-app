@@ -427,6 +427,7 @@ function App() {
   if (quizState === 'results') {
   const correctAnswers = answers.filter((a) => a.isCorrect).length;
   const totalQuestions = questions.length;
+  const scorePercentage = Math.round((correctAnswers / totalQuestions) * 100);
 
   if (userDetails && !hasSubmittedResults.current) {
     hasSubmittedResults.current = true;
@@ -439,14 +440,16 @@ function App() {
           .from('quiz_results')
           .insert([{
             user_name: userDetails.name,
-            user_email: userDetails.email,
+            email: userDetails.email,
             mobile_number: userDetails.mobile || '',
             college_name: userDetails.college || '',
             course_id: userDetails.course_id || 'default',
             week: userDetails.week || '1',
-            score: correctAnswers,
+            correct_answers: correctAnswers,
             total_questions: totalQuestions,
-            time_taken_seconds: timeTaken
+            score_percentage: scorePercentage,
+            time_taken_seconds: timeTaken,
+            answers: answers
           }]);
         
         if (error) {
