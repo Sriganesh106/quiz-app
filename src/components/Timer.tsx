@@ -1,29 +1,24 @@
 import { Clock } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 
 interface TimerProps {
   isRunning: boolean;
+  seconds: number;
   onTimeUpdate?: (seconds: number) => void;
 }
 
-export default function Timer({ isRunning, onTimeUpdate }: TimerProps) {
-  const [seconds, setSeconds] = useState(0);
-
+export default function Timer({ isRunning, seconds, onTimeUpdate }: TimerProps) {
   useEffect(() => {
     if (!isRunning) return;
 
     const interval = setInterval(() => {
-      setSeconds((prev) => {
-        const newTime = prev + 1;
-        if (onTimeUpdate) {
-          onTimeUpdate(newTime);
-        }
-        return newTime;
-      });
+      if (onTimeUpdate) {
+        onTimeUpdate(seconds + 1);
+      }
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [isRunning, onTimeUpdate]);
+  }, [isRunning, seconds, onTimeUpdate]);
 
   const formatTime = (totalSeconds: number) => {
     const mins = Math.floor(totalSeconds / 60);
