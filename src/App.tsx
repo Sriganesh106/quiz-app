@@ -338,7 +338,7 @@ function App() {
                   Standard Round
                 </div>
                 <div className="text-white text-sm">
-                  8 questions of normal difficulty to warm you up
+                  15 questions of normal difficulty to warm you up
                 </div>
               </div>
               <div className="bg-red-500/20 rounded-xl p-4 border border-red-400/30">
@@ -346,7 +346,7 @@ function App() {
                   Final Boss Round
                 </div>
                 <div className="text-white text-sm">
-                  7 challenging questions to test your expertise
+                  15 challenging questions to test your expertise
                 </div>
               </div>
             </div>
