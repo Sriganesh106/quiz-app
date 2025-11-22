@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { CheckCircle, RotateCcw, Download, User, Mail, Phone, GraduationCap } from 'lucide-react';
+import { CheckCircle, Download, User, Mail } from 'lucide-react';
 import jsPDF from 'jspdf';
 
 interface ResultsProps {
@@ -10,8 +10,6 @@ interface ResultsProps {
   onRestart: () => void;
   userEmail?: string;
   userName?: string;
-  userMobile?: string;
-  userCollege?: string;
 }
 
 const Results: React.FC<ResultsProps> = ({ 
@@ -21,8 +19,6 @@ const Results: React.FC<ResultsProps> = ({
   onRestart,
   userEmail,
   userName,
-  userMobile,
-  userCollege
 }) => {
   const scorePercentage = Math.round((correctAnswers / totalQuestions) * 100);
   const minutes = Math.floor(timeTaken / 60);
@@ -33,7 +29,7 @@ const Results: React.FC<ResultsProps> = ({
     const pageWidth = doc.internal.pageSize.getWidth();
     
     // Header - SWAVIK INTERNSHIP
-    doc.setFillColor(88, 28, 135); // Purple
+    doc.setFillColor(88, 28, 135);
     doc.rect(0, 0, pageWidth, 35, 'F');
     
     doc.setTextColor(255, 255, 255);
@@ -82,22 +78,6 @@ const Results: React.FC<ResultsProps> = ({
     doc.text('Email:', 20, yPos);
     doc.setFont('helvetica', 'normal');
     doc.text(userEmail || 'N/A', 50, yPos);
-    
-    if (userMobile) {
-      yPos += 7;
-      doc.setFont('helvetica', 'bold');
-      doc.text('Mobile:', 20, yPos);
-      doc.setFont('helvetica', 'normal');
-      doc.text(userMobile, 50, yPos);
-    }
-    
-    if (userCollege) {
-      yPos += 7;
-      doc.setFont('helvetica', 'bold');
-      doc.text('College:', 20, yPos);
-      doc.setFont('helvetica', 'normal');
-      doc.text(userCollege, 50, yPos);
-    }
 
     // Large Score Circle
     yPos += 20;
@@ -254,7 +234,7 @@ const Results: React.FC<ResultsProps> = ({
               <User className="w-5 h-5" />
               Student Details
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
+            <div className="grid grid-cols-1 gap-4 text-left">
               <div className="flex items-center gap-3 bg-white/5 backdrop-blur-sm p-3 rounded-lg border border-white/10">
                 <User className="w-5 h-5 text-emerald-400" />
                 <div>
@@ -269,45 +249,21 @@ const Results: React.FC<ResultsProps> = ({
                   <div className="font-semibold text-white text-sm break-all">{userEmail || 'N/A'}</div>
                 </div>
               </div>
-              <div className="flex items-center gap-3 bg-white/5 backdrop-blur-sm p-3 rounded-lg border border-white/10">
-                <Phone className="w-5 h-5 text-emerald-400" />
-                <div>
-                  <div className="text-xs text-gray-400">Mobile</div>
-                  <div className="font-semibold text-white">{userMobile || 'N/A'}</div>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 bg-white/5 backdrop-blur-sm p-3 rounded-lg border border-white/10">
-                <GraduationCap className="w-5 h-5 text-blue-400" />
-                <div>
-                  <div className="text-xs text-gray-400">College</div>
-                  <div className="font-semibold text-white text-sm">{userCollege || 'N/A'}</div>
-                </div>
-              </div>
             </div>
           </div>
 
           {/* Download PDF Report Button */}
           <button
             onClick={handleDownloadPDF}
-            className="w-full mb-4 px-6 py-3 bg-gradient-to-r from-emerald-500 to-blue-500 text-white rounded-xl font-bold hover:from-emerald-600 hover:to-blue-600 transition-all transform hover:scale-105 flex items-center justify-center gap-2 shadow-xl"
+            className="w-full px-6 py-3 bg-gradient-to-r from-emerald-500 to-blue-500 text-white rounded-xl font-bold hover:from-emerald-600 hover:to-blue-600 transition-all transform hover:scale-105 flex items-center justify-center gap-2 shadow-xl"
           >
             <Download size={20} />
             Download PDF Report
           </button>
-
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <button
-              onClick={onRestart}
-              className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-blue-500 text-white rounded-xl font-bold hover:from-emerald-600 hover:to-blue-600 transition-all transform hover:scale-105 flex items-center justify-center gap-2 shadow-xl"
-            >
-              <RotateCcw size={18} />
-              Take Quiz Again
-            </button>
-          </div>
         </div>
       </motion.div>
     </div>
   );
-}; 
+};
 
 export default Results;
