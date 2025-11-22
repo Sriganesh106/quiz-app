@@ -205,7 +205,7 @@ function App() {
 
   const handleCountdownComplete = () => {
     setQuizState('quiz');
-    setIsTimerActive(true); // Start timer when quiz begins
+    setIsTimerActive(true);
   };
 
   const handleAnswer = (answer: string) => {
@@ -223,7 +223,7 @@ function App() {
     setAnswers(newAnswers);
 
     if (currentQuestionIndex === questions.length - 1) {
-      setIsTimerActive(false); // Stop timer when quiz ends
+      setIsTimerActive(false);
       setQuizState('results');
       return;
     }
@@ -255,6 +255,24 @@ function App() {
     setIsTimerActive(false);
     hasSubmittedResults.current = false;
     setQuizState('welcome');
+  };
+
+  // Render persistent timer that stays mounted
+  const renderPersistentTimer = () => {
+    if (!isTimerActive) return null;
+    
+    const shouldShowTimer = quizState === 'quiz';
+    
+    return (
+      <div style={{ 
+        position: shouldShowTimer ? 'static' : 'fixed',
+        visibility: shouldShowTimer ? 'visible' : 'hidden',
+        top: shouldShowTimer ? 'auto' : -9999,
+        left: shouldShowTimer ? 'auto' : -9999
+      }}>
+        <Timer isRunning={isTimerActive} onTimeUpdate={handleTimeUpdate} />
+      </div>
+    );
   };
 
   if (loading) {
@@ -392,13 +410,8 @@ function App() {
   if (quizState === 'boss-transition') {
     return (
       <>
+        {renderPersistentTimer()}
         <BossTransition onComplete={startBossRound} />
-        {/* Keep timer running but hidden during transition */}
-        {isTimerActive && (
-          <div style={{ position: 'fixed', top: -9999, left: -9999 }}>
-            <Timer isRunning={isTimerActive} onTimeUpdate={handleTimeUpdate} />
-          </div>
-        )}
       </>
     );
   }
@@ -418,7 +431,7 @@ function App() {
             }`}>
               {isBossRound ? 'Final Boss Round' : 'Standard Round'}
             </h1>
-            <Timer isRunning={isTimerActive} onTimeUpdate={handleTimeUpdate} />
+            {renderPersistentTimer()}
           </div>
 
           <ProgressLine
