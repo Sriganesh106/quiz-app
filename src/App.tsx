@@ -10,7 +10,7 @@ import UserDetailsForm from './components/UserDetailsForm';
 import { supabase } from './lib/supabase';
 
 // In App.tsx, line ~10
-const ALLOWED_COURSE_IDS = ['1', '3', '4', '7', '8'];  // Added '1' to the array
+const ALLOWED_COURSE_IDS = ['1', '2', '3', '4', '7', '8'];
 const ALLOWED_WEEKS = ['1', '2', '3'];
 
 type QuizState = 'user-details' | 'welcome' | 'countdown' | 'quiz' | 'boss-transition' | 'results';
