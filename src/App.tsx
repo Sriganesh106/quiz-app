@@ -9,7 +9,6 @@ import Results from './components/Results';
 import UserDetailsForm from './components/UserDetailsForm';
 import { supabase } from './lib/supabase';
 
-// In App.tsx, line ~10
 const ALLOWED_COURSE_IDS = ['1', '2', '3', '4', '7', '8'];
 const ALLOWED_WEEKS = ['1', '2', '3'];
 
@@ -40,6 +39,7 @@ function App() {
   const [timeTaken, setTimeTaken] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isTimerRunning, setIsTimerRunning] = useState(false);
   const hasRecordedParticipantRef = useRef(false);
   const hasSubmittedResults = useRef(false);
 
@@ -204,6 +204,7 @@ function App() {
 
   const handleCountdownComplete = () => {
     setQuizState('quiz');
+    setIsTimerRunning(true); // Start timer
   };
 
   const handleAnswer = (answer: string) => {
@@ -221,6 +222,7 @@ function App() {
     setAnswers(newAnswers);
 
     if (currentQuestionIndex === questions.length - 1) {
+      setIsTimerRunning(false); // Stop timer
       setQuizState('results');
       return;
     }
@@ -249,6 +251,7 @@ function App() {
     setCurrentQuestionIndex(0);
     setAnswers([]);
     setTimeTaken(0);
+    setIsTimerRunning(false);
     hasSubmittedResults.current = false;
     setQuizState('welcome');
   };
@@ -386,7 +389,17 @@ function App() {
   }
 
   if (quizState === 'boss-transition') {
-    return <BossTransition onComplete={startBossRound} />;
+    return (
+      <>
+        {/* Hidden timer that keeps running */}
+        {isTimerRunning && (
+          <div style={{ position: 'fixed', top: -9999, left: -9999, visibility: 'hidden' }}>
+            <Timer isRunning={isTimerRunning} onTimeUpdate={handleTimeUpdate} />
+          </div>
+        )}
+        <BossTransition onComplete={startBossRound} />
+      </>
+    );
   }
 
   if (quizState === 'quiz' && currentQuestion) {
@@ -404,7 +417,7 @@ function App() {
             }`}>
               {isBossRound ? 'Final Boss Round' : 'Standard Round'}
             </h1>
-            <Timer isRunning={true} onTimeUpdate={handleTimeUpdate} />
+            <Timer isRunning={isTimerRunning} onTimeUpdate={handleTimeUpdate} />
           </div>
 
           <ProgressLine
@@ -426,59 +439,59 @@ function App() {
   }
 
   if (quizState === 'results') {
-  const correctAnswers = answers.filter((a) => a.isCorrect).length;
-  const totalQuestions = questions.length;
-  const scorePercentage = Math.round((correctAnswers / totalQuestions) * 100);
+    const correctAnswers = answers.filter((a) => a.isCorrect).length;
+    const totalQuestions = questions.length;
+    const scorePercentage = Math.round((correctAnswers / totalQuestions) * 100);
 
-  if (userDetails && !hasSubmittedResults.current) {
-    hasSubmittedResults.current = true;
-    
-    const submitResults = async () => {
-      try {
-        console.log('Submitting quiz results...');
-        
-        const { error } = await supabase
-          .from('quiz_results')
-          .insert([{
-            user_name: userDetails.name,
-            email: userDetails.email,
-            mobile_number: userDetails.mobile || '',
-            college_name: userDetails.college || '',
-            course_id: userDetails.course_id || 'default',
-            week: userDetails.week || '1',
-            correct_answers: correctAnswers,
-            total_questions: totalQuestions,
-            score_percentage: scorePercentage,
-            time_taken_seconds: timeTaken,
-            answers: answers
-          }]);
-        
-        if (error) {
-          console.error('Error saving results:', error);
-        } else {
-          console.log('Results saved successfully');
+    if (userDetails && !hasSubmittedResults.current) {
+      hasSubmittedResults.current = true;
+      
+      const submitResults = async () => {
+        try {
+          console.log('Submitting quiz results...');
+          
+          const { error } = await supabase
+            .from('quiz_results')
+            .insert([{
+              user_name: userDetails.name,
+              email: userDetails.email,
+              mobile_number: userDetails.mobile || '',
+              college_name: userDetails.college || '',
+              course_id: userDetails.course_id || 'default',
+              week: userDetails.week || '1',
+              correct_answers: correctAnswers,
+              total_questions: totalQuestions,
+              score_percentage: scorePercentage,
+              time_taken_seconds: timeTaken,
+              answers: answers
+            }]);
+          
+          if (error) {
+            console.error('Error saving results:', error);
+          } else {
+            console.log('Results saved successfully');
+          }
+        } catch (error) {
+          console.error('Error in submitResults:', error);
         }
-      } catch (error) {
-        console.error('Error in submitResults:', error);
-      }
-    };
-    
-    submitResults();
-  }
+      };
+      
+      submitResults();
+    }
 
-  return (
-    <Results
-      correctAnswers={correctAnswers}
-      totalQuestions={totalQuestions}
-      timeTaken={timeTaken}
-      onRestart={handleRestart}
-      userEmail={userDetails?.email}
-      userName={userDetails?.name}
-      userMobile={userDetails?.mobile}
-      userCollege={userDetails?.college}
-    />
-  );
-}
+    return (
+      <Results
+        correctAnswers={correctAnswers}
+        totalQuestions={totalQuestions}
+        timeTaken={timeTaken}
+        onRestart={handleRestart}
+        userEmail={userDetails?.email}
+        userName={userDetails?.name}
+        userMobile={userDetails?.mobile}
+        userCollege={userDetails?.college}
+      />
+    );
+  }
 
   if (error) {
     return (
