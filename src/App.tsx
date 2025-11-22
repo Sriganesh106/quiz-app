@@ -257,24 +257,6 @@ function App() {
     setQuizState('welcome');
   };
 
-  // Render persistent timer that stays mounted
-  const renderPersistentTimer = () => {
-    if (!isTimerActive) return null;
-    
-    const shouldShowTimer = quizState === 'quiz';
-    
-    return (
-      <div style={{ 
-        position: shouldShowTimer ? 'static' : 'fixed',
-        visibility: shouldShowTimer ? 'visible' : 'hidden',
-        top: shouldShowTimer ? 'auto' : -9999,
-        left: shouldShowTimer ? 'auto' : -9999
-      }}>
-        <Timer isRunning={isTimerActive} onTimeUpdate={handleTimeUpdate} />
-      </div>
-    );
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
@@ -410,8 +392,13 @@ function App() {
   if (quizState === 'boss-transition') {
     return (
       <>
-        {renderPersistentTimer()}
         <BossTransition onComplete={startBossRound} />
+        {/* Keep timer running but hidden during transition */}
+        {isTimerActive && (
+          <div style={{ position: 'fixed', top: -9999, left: -9999, visibility: 'hidden' }}>
+            <Timer isRunning={isTimerActive} onTimeUpdate={handleTimeUpdate} />
+          </div>
+        )}
       </>
     );
   }
@@ -431,7 +418,7 @@ function App() {
             }`}>
               {isBossRound ? 'Final Boss Round' : 'Standard Round'}
             </h1>
-            {renderPersistentTimer()}
+            <Timer isRunning={isTimerActive} onTimeUpdate={handleTimeUpdate} />
           </div>
 
           <ProgressLine
@@ -453,59 +440,59 @@ function App() {
   }
 
   if (quizState === 'results') {
-  const correctAnswers = answers.filter((a) => a.isCorrect).length;
-  const totalQuestions = questions.length;
-  const scorePercentage = Math.round((correctAnswers / totalQuestions) * 100);
+    const correctAnswers = answers.filter((a) => a.isCorrect).length;
+    const totalQuestions = questions.length;
+    const scorePercentage = Math.round((correctAnswers / totalQuestions) * 100);
 
-  if (userDetails && !hasSubmittedResults.current) {
-    hasSubmittedResults.current = true;
-    
-    const submitResults = async () => {
-      try {
-        console.log('Submitting quiz results...');
-        
-        const { error } = await supabase
-          .from('quiz_results')
-          .insert([{
-            user_name: userDetails.name,
-            email: userDetails.email,
-            mobile_number: userDetails.mobile || '',
-            college_name: userDetails.college || '',
-            course_id: userDetails.course_id || 'default',
-            week: userDetails.week || '1',
-            correct_answers: correctAnswers,
-            total_questions: totalQuestions,
-            score_percentage: scorePercentage,
-            time_taken_seconds: timeTaken,
-            answers: answers
-          }]);
-        
-        if (error) {
-          console.error('Error saving results:', error);
-        } else {
-          console.log('Results saved successfully');
+    if (userDetails && !hasSubmittedResults.current) {
+      hasSubmittedResults.current = true;
+      
+      const submitResults = async () => {
+        try {
+          console.log('Submitting quiz results...');
+          
+          const { error } = await supabase
+            .from('quiz_results')
+            .insert([{
+              user_name: userDetails.name,
+              email: userDetails.email,
+              mobile_number: userDetails.mobile || '',
+              college_name: userDetails.college || '',
+              course_id: userDetails.course_id || 'default',
+              week: userDetails.week || '1',
+              correct_answers: correctAnswers,
+              total_questions: totalQuestions,
+              score_percentage: scorePercentage,
+              time_taken_seconds: timeTaken,
+              answers: answers
+            }]);
+          
+          if (error) {
+            console.error('Error saving results:', error);
+          } else {
+            console.log('Results saved successfully');
+          }
+        } catch (error) {
+          console.error('Error in submitResults:', error);
         }
-      } catch (error) {
-        console.error('Error in submitResults:', error);
-      }
-    };
-    
-    submitResults();
-  }
+      };
+      
+      submitResults();
+    }
 
-  return (
-    <Results
-      correctAnswers={correctAnswers}
-      totalQuestions={totalQuestions}
-      timeTaken={timeTaken}
-      onRestart={handleRestart}
-      userEmail={userDetails?.email}
-      userName={userDetails?.name}
-      userMobile={userDetails?.mobile}
-      userCollege={userDetails?.college}
-    />
-  );
-}
+    return (
+      <Results
+        correctAnswers={correctAnswers}
+        totalQuestions={totalQuestions}
+        timeTaken={timeTaken}
+        onRestart={handleRestart}
+        userEmail={userDetails?.email}
+        userName={userDetails?.name}
+        userMobile={userDetails?.mobile}
+        userCollege={userDetails?.college}
+      />
+    );
+  }
 
   if (error) {
     return (
