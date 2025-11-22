@@ -40,6 +40,7 @@ function App() {
   const [timeTaken, setTimeTaken] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isTimerRunning, setIsTimerRunning] = useState(false);
   const hasRecordedParticipantRef = useRef(false);
   const hasSubmittedResults = useRef(false);
 
@@ -204,6 +205,7 @@ function App() {
 
   const handleCountdownComplete = () => {
     setQuizState('quiz');
+    setIsTimerRunning(true); // Start timer when quiz begins
   };
 
   const handleAnswer = (answer: string) => {
@@ -221,6 +223,7 @@ function App() {
     setAnswers(newAnswers);
 
     if (currentQuestionIndex === questions.length - 1) {
+      setIsTimerRunning(false); // Stop timer when quiz ends
       setQuizState('results');
       return;
     }
@@ -249,6 +252,7 @@ function App() {
     setCurrentQuestionIndex(0);
     setAnswers([]);
     setTimeTaken(0);
+    setIsTimerRunning(false);
     hasSubmittedResults.current = false;
     setQuizState('welcome');
   };
@@ -386,7 +390,15 @@ function App() {
   }
 
   if (quizState === 'boss-transition') {
-    return <BossTransition onComplete={startBossRound} />;
+    return (
+      <>
+        {/* Keep timer mounted but hidden during transition */}
+        <div style={{ position: 'absolute', visibility: 'hidden' }}>
+          <Timer isRunning={isTimerRunning} onTimeUpdate={handleTimeUpdate} />
+        </div>
+        <BossTransition onComplete={startBossRound} />
+      </>
+    );
   }
 
   if (quizState === 'quiz' && currentQuestion) {
@@ -404,7 +416,7 @@ function App() {
             }`}>
               {isBossRound ? 'Final Boss Round' : 'Standard Round'}
             </h1>
-            <Timer isRunning={true} onTimeUpdate={handleTimeUpdate} />
+            <Timer isRunning={isTimerRunning} onTimeUpdate={handleTimeUpdate} />
           </div>
 
           <ProgressLine
