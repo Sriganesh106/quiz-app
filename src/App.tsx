@@ -9,7 +9,6 @@ import Results from './components/Results';
 import UserDetailsForm from './components/UserDetailsForm';
 import { supabase } from './lib/supabase';
 
-// In App.tsx, line ~10
 const ALLOWED_COURSE_IDS = ['1', '2', '3', '4', '7', '8'];
 const ALLOWED_WEEKS = ['1', '2', '3'];
 
@@ -43,6 +42,7 @@ function App() {
   const [isTimerActive, setIsTimerActive] = useState(false);
   const hasRecordedParticipantRef = useRef(false);
   const hasSubmittedResults = useRef(false);
+  const timerRef = useRef<HTMLDivElement>(null);
 
   const getUrlParams = () => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -257,23 +257,7 @@ function App() {
     setQuizState('welcome');
   };
 
-  // Render persistent timer that stays mounted
-  const renderPersistentTimer = () => {
-    if (!isTimerActive) return null;
-    
-    const shouldShowTimer = quizState === 'quiz';
-    
-    return (
-      <div style={{ 
-        position: shouldShowTimer ? 'static' : 'fixed',
-        visibility: shouldShowTimer ? 'visible' : 'hidden',
-        top: shouldShowTimer ? 'auto' : -9999,
-        left: shouldShowTimer ? 'auto' : -9999
-      }}>
-        <Timer isRunning={isTimerActive} onTimeUpdate={handleTimeUpdate} />
-      </div>
-    );
-  };
+  const showTimer = quizState === 'quiz';
 
   if (loading) {
     return (
@@ -410,7 +394,20 @@ function App() {
   if (quizState === 'boss-transition') {
     return (
       <>
-        {renderPersistentTimer()}
+        {/* Persistent Timer - stays mounted but hidden */}
+        {isTimerActive && (
+          <div 
+            ref={timerRef}
+            style={{ 
+              position: 'fixed', 
+              top: -9999, 
+              left: -9999,
+              visibility: 'hidden'
+            }}
+          >
+            <Timer isRunning={isTimerActive} onTimeUpdate={handleTimeUpdate} />
+          </div>
+        )}
         <BossTransition onComplete={startBossRound} />
       </>
     );
@@ -431,7 +428,12 @@ function App() {
             }`}>
               {isBossRound ? 'Final Boss Round' : 'Standard Round'}
             </h1>
-            {renderPersistentTimer()}
+            {/* Persistent Timer - visible here */}
+            {isTimerActive && (
+              <div ref={showTimer ? timerRef : undefined}>
+                <Timer isRunning={isTimerActive} onTimeUpdate={handleTimeUpdate} />
+              </div>
+            )}
           </div>
 
           <ProgressLine
@@ -453,59 +455,59 @@ function App() {
   }
 
   if (quizState === 'results') {
-  const correctAnswers = answers.filter((a) => a.isCorrect).length;
-  const totalQuestions = questions.length;
-  const scorePercentage = Math.round((correctAnswers / totalQuestions) * 100);
+    const correctAnswers = answers.filter((a) => a.isCorrect).length;
+    const totalQuestions = questions.length;
+    const scorePercentage = Math.round((correctAnswers / totalQuestions) * 100);
 
-  if (userDetails && !hasSubmittedResults.current) {
-    hasSubmittedResults.current = true;
-    
-    const submitResults = async () => {
-      try {
-        console.log('Submitting quiz results...');
-        
-        const { error } = await supabase
-          .from('quiz_results')
-          .insert([{
-            user_name: userDetails.name,
-            email: userDetails.email,
-            mobile_number: userDetails.mobile || '',
-            college_name: userDetails.college || '',
-            course_id: userDetails.course_id || 'default',
-            week: userDetails.week || '1',
-            correct_answers: correctAnswers,
-            total_questions: totalQuestions,
-            score_percentage: scorePercentage,
-            time_taken_seconds: timeTaken,
-            answers: answers
-          }]);
-        
-        if (error) {
-          console.error('Error saving results:', error);
-        } else {
-          console.log('Results saved successfully');
+    if (userDetails && !hasSubmittedResults.current) {
+      hasSubmittedResults.current = true;
+      
+      const submitResults = async () => {
+        try {
+          console.log('Submitting quiz results...');
+          
+          const { error } = await supabase
+            .from('quiz_results')
+            .insert([{
+              user_name: userDetails.name,
+              email: userDetails.email,
+              mobile_number: userDetails.mobile || '',
+              college_name: userDetails.college || '',
+              course_id: userDetails.course_id || 'default',
+              week: userDetails.week || '1',
+              correct_answers: correctAnswers,
+              total_questions: totalQuestions,
+              score_percentage: scorePercentage,
+              time_taken_seconds: timeTaken,
+              answers: answers
+            }]);
+          
+          if (error) {
+            console.error('Error saving results:', error);
+          } else {
+            console.log('Results saved successfully');
+          }
+        } catch (error) {
+          console.error('Error in submitResults:', error);
         }
-      } catch (error) {
-        console.error('Error in submitResults:', error);
-      }
-    };
-    
-    submitResults();
-  }
+      };
+      
+      submitResults();
+    }
 
-  return (
-    <Results
-      correctAnswers={correctAnswers}
-      totalQuestions={totalQuestions}
-      timeTaken={timeTaken}
-      onRestart={handleRestart}
-      userEmail={userDetails?.email}
-      userName={userDetails?.name}
-      userMobile={userDetails?.mobile}
-      userCollege={userDetails?.college}
-    />
-  );
-}
+    return (
+      <Results
+        correctAnswers={correctAnswers}
+        totalQuestions={totalQuestions}
+        timeTaken={timeTaken}
+        onRestart={handleRestart}
+        userEmail={userDetails?.email}
+        userName={userDetails?.name}
+        userMobile={userDetails?.mobile}
+        userCollege={userDetails?.college}
+      />
+    );
+  }
 
   if (error) {
     return (
