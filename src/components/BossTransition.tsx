@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Flame, Zap, Target } from 'lucide-react';
 
 interface BossTransitionProps {
@@ -7,26 +7,38 @@ interface BossTransitionProps {
 
 export default function BossTransition({ onComplete }: BossTransitionProps) {
   const [phase, setPhase] = useState<'enter' | 'show' | 'exit'>('enter');
+  const onCompleteRef = useRef(onComplete);
+
+  // Update ref when onComplete changes
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
 
   useEffect(() => {
+    console.log('BossTransition mounted, starting timers');
+    
     const enterTimer = setTimeout(() => {
+      console.log('Phase: show');
       setPhase('show');
     }, 300);
 
     const showTimer = setTimeout(() => {
+      console.log('Phase: exit');
       setPhase('exit');
     }, 3000);
 
     const exitTimer = setTimeout(() => {
-      onComplete();
+      console.log('BossTransition calling onComplete');
+      onCompleteRef.current();
     }, 3800);
 
     return () => {
+      console.log('BossTransition cleanup');
       clearTimeout(enterTimer);
       clearTimeout(showTimer);
       clearTimeout(exitTimer);
     };
-  }, [onComplete]);
+  }, []); // Empty dependency array - only run once on mount
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden">
