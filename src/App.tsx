@@ -204,7 +204,7 @@ function App() {
 
   const handleCountdownComplete = () => {
     setQuizState('quiz');
-    setIsTimerRunning(true); // Start timer
+    setIsTimerRunning(true);
   };
 
   const handleAnswer = (answer: string) => {
@@ -222,7 +222,7 @@ function App() {
     setAnswers(newAnswers);
 
     if (currentQuestionIndex === questions.length - 1) {
-      setIsTimerRunning(false); // Stop timer
+      setIsTimerRunning(false);
       setQuizState('results');
       return;
     }
@@ -255,6 +255,9 @@ function App() {
     hasSubmittedResults.current = false;
     setQuizState('welcome');
   };
+
+  // Determine if timer should be visible in the UI
+  const showTimerInUI = quizState === 'quiz';
 
   if (loading) {
     return (
@@ -391,9 +394,16 @@ function App() {
   if (quizState === 'boss-transition') {
     return (
       <>
-        {/* Hidden timer that keeps running */}
+        {/* Render timer in fixed position - hidden but keeps running */}
         {isTimerRunning && (
-          <div style={{ position: 'fixed', top: -9999, left: -9999, visibility: 'hidden' }}>
+          <div style={{ 
+            position: 'fixed', 
+            top: '20px', 
+            right: '20px',
+            zIndex: -1,
+            opacity: 0,
+            pointerEvents: 'none'
+          }}>
             <Timer isRunning={isTimerRunning} onTimeUpdate={handleTimeUpdate} />
           </div>
         )}
@@ -405,36 +415,50 @@ function App() {
   if (quizState === 'quiz' && currentQuestion) {
     const isBossRound = currentQuestion.difficulty === 'boss';
     return (
-      <div className={`min-h-screen py-8 px-4 transition-colors duration-700 ${
-        isBossRound 
-          ? 'bg-gradient-to-br from-red-900 via-red-800 to-orange-900' 
-          : 'bg-gradient-to-br from-gray-50 to-gray-100'
-      }`}>
-        <div className="max-w-4xl mx-auto">
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
-            <h1 className={`text-xl sm:text-2xl md:text-3xl font-bold break-words text-center sm:text-left ${
-              isBossRound ? 'text-white' : 'text-gray-900'
-            }`}>
-              {isBossRound ? 'Final Boss Round' : 'Standard Round'}
-            </h1>
+      <>
+        {/* Render timer in fixed position - visible in quiz state */}
+        {isTimerRunning && (
+          <div style={{ 
+            position: 'fixed', 
+            top: '20px', 
+            right: '20px',
+            zIndex: 50
+          }}>
             <Timer isRunning={isTimerRunning} onTimeUpdate={handleTimeUpdate} />
           </div>
+        )}
+        <div className={`min-h-screen py-8 px-4 transition-colors duration-700 ${
+          isBossRound 
+            ? 'bg-gradient-to-br from-red-900 via-red-800 to-orange-900' 
+            : 'bg-gradient-to-br from-gray-50 to-gray-100'
+        }`}>
+          <div className="max-w-4xl mx-auto">
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
+              <h1 className={`text-xl sm:text-2xl md:text-3xl font-bold break-words text-center sm:text-left ${
+                isBossRound ? 'text-white' : 'text-gray-900'
+              }`}>
+                {isBossRound ? 'Final Boss Round' : 'Standard Round'}
+              </h1>
+              {/* Spacer to maintain layout */}
+              <div style={{ width: '150px', height: '44px' }}></div>
+            </div>
 
-          <ProgressLine
-            currentQuestion={currentQuestionIndex + 1}
-            totalQuestions={questions.length}
-            phase={currentPhase}
-          />
+            <ProgressLine
+              currentQuestion={currentQuestionIndex + 1}
+              totalQuestions={questions.length}
+              phase={currentPhase}
+            />
 
-          <QuestionCard
-            question={currentQuestion}
-            onAnswer={handleAnswer}
-            questionNumber={currentQuestionIndex + 1}
-            totalQuestions={questions.length}
-            isBossRound={isBossRound}
-          />
+            <QuestionCard
+              question={currentQuestion}
+              onAnswer={handleAnswer}
+              questionNumber={currentQuestionIndex + 1}
+              totalQuestions={questions.length}
+              isBossRound={isBossRound}
+            />
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
